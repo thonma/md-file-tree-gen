@@ -76,6 +76,12 @@ const filterPath = (path) => {
   return true;
 }
 
+/**
+ * ファイルパスをマークダウンのリンクにする
+ * 
+ * @param {string} path 
+ * @returns 
+ */
 const toMdLink = (path) => {
   return `- [${path}](${path})`;
 }
