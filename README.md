@@ -1,13 +1,19 @@
-# md-file-tree-gen README
+# md-file-tree-gen
+フォルダ構成を参照して以下のようなマークダウンファイルを出力するVSCode拡張
 
-## Todo
-- 設定ファイルで動作を変えられるようにする
-  - 出力対象外のファイル
-  - 出力先ファイルパス
+```
+# directory0
+- [hoge](/directory0/.../hoge)
+- [fuga](/directory0/.../fuga)
+- [piyo](/directory0/.../piyo)
 
-```json
-"md-file-tree-gen.outputPath": "/path/to/file_tree.md",
-"md-file-tree-gen.exclude": [
-  ".git", "/images/*", "tmp.*", "*.git*"
-]
+# directory1
+- [hoge](/directory1/.../hoge)
+- [fuga](/directory1/.../fuga)
+- [piyo](/directory1/.../piyo)
+
+# directory2
+- [hoge](/directory1/.../hoge)
+  - [fuga](/directory1/.../fuga)
+  - [piyo](/directory1/.../piyo)
 ```

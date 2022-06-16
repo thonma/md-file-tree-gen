@@ -11,6 +11,7 @@ const FileType = {
 
 /**
  * ファイルの種類を取得する
+ * 
  * @param {string} path パス
  * @return {string} ファイルの種類
  */
@@ -30,7 +31,7 @@ const getFileType = (path) => {
 };
 
 /**
- * 指定したディレクトリ配下のすべてのファイルをリストアップする
+ * 指定したディレクトリ配下のすべてのファイルのフルパスをリストアップする
  * 
  * @param {string} dirPath 検索するディレクトリのパス
  * @return {Array<string>} ファイルのパスのリスト
@@ -45,6 +46,7 @@ const listFiles = (dirPath) => {
     const fileType = getFileType(path);
 
     if (fileType === FileType.Directory) {
+      fullpathList.push(path);
       fullpathList.push(...listFiles(path));
     }
 
@@ -54,32 +56,6 @@ const listFiles = (dirPath) => {
   })
 
   return fullpathList;
-};
-
-/**
- * 出力対象のファイルパスかどうかを返す
- * 
- * @param {string} path 
- * @param {Array<string>} ignoreFilenameList 
- * @returns 
- */
-const filterPath = (path, ignoreFilenameList) => {
-  for (const ignore of ignoreFilenameList) {
-    if (path.includes(ignore)) {
-      return false;
-    }
-  }
-  return true;
-};
-
-/**
- * ファイルパスをマークダウンのリンクにする
- * 
- * @param {string} path 
- * @returns 
- */
-const toMdLink = (path) => {
-  return `- [${path}](${path})`;
 };
 
 /**
@@ -116,25 +92,38 @@ const activate = (context) => {
     // ファイルパスリストを整形
     // ==========================================================
     const filteredList = list
-      .map(item => item.replace(/\\/g, '/').replace(workspaceDirPath + `/`, ``))
-      .filter(p => {
-        return filterPath(p, ignoreFilenameList);
+      .map(path => {
+        // フルパスの中で不要な部分を削除
+        return path.replace(workspaceDirPath + `/`, ``).replace(/\\/g, '/');
       })
-      .map(toMdLink);
+      .filter(path => {
+        // 設定ファイルで対象外になっているものを除外
+        for (const ignore of ignoreFilenameList) {
+          if (path.includes(ignore)) {
+            return false;
+          }
+        }
+        return true;
+      })
+      .map((path, rowIdx) => {
+        // 見出し
+        if (path.includes(`/`) === false) {
+          if (rowIdx === 0) {
+            return `# [${path}](${path})`;
+          }
+          return `\n# [${path}](${path})`;
+        }
 
-    for (let i = 0; i < filteredList.length - 1; i++) {
-      const curr = filteredList[i];
-      const next = filteredList[i + 1];
-
-      if (curr.substring(0, 5) !== next.substring(0, 5)) {
-        filteredList[i] += `\n`;
-        const headText = next.split(`/`)[0].replace(`- [`, ``);
-        filteredList.splice(i + 1, 0, `# ${headText}`);
-        i++;
-      }
-    }
-    const head0 = filteredList[0].split(`/`)[0].replace(`- [`, ``);
-    filteredList.unshift(`# ${head0}`);
+        // 資料
+        const filename = path.split(`/`).pop();
+        const markdownLinkText = `- [${filename}](${path})`;
+        const depth = path.split(`/`).length - 2;
+        if (0 < depth) {
+          const indent = '  '.repeat(depth);
+          return indent + markdownLinkText;
+        }
+        return markdownLinkText;
+      });
 
     // ==========================================================
     // 結果をファイル出力
