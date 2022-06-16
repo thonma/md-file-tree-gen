@@ -1,3 +1,5 @@
+const EXTENSION_NAME = `md-file-tree-gen`;
+
 const vscode = require('vscode');
 const fs = require('fs');
 
@@ -25,7 +27,7 @@ const getFileType = (path) => {
   } catch (e) {
     return FileType.Unknown;
   }
-}
+};
 
 /**
  * 指定したディレクトリ配下のすべてのファイルをリストアップする
@@ -34,47 +36,41 @@ const getFileType = (path) => {
  * @return {Array<string>} ファイルのパスのリスト
  */
 const listFiles = (dirPath) => {
-  const ret = [];
+  const fullpathList = [];
   const paths = fs.readdirSync(dirPath);
 
-  paths.forEach(a => {
-    const path = `${dirPath}/${a}`;
+  paths.forEach(p => {
+    const path = `${dirPath}/${p}`;
 
     const fileType = getFileType(path);
 
     if (fileType === FileType.Directory) {
-      ret.push(...listFiles(path));
+      fullpathList.push(...listFiles(path));
     }
 
     if (fileType === FileType.File) {
-      ret.push(path);
+      fullpathList.push(path);
     }
   })
 
-  return ret;
+  return fullpathList;
 };
 
 /**
  * 出力対象のファイルパスかどうかを返す
  * 
  * @param {string} path 
+ * @param {Array<string>} ignoreFilenameList 
  * @returns 
  */
-const filterPath = (path) => {
-  if (path.startsWith(`.git`) || path.startsWith(`images`) || path.startsWith(`tmp`)) {
-    return false;
-  }
-  if (path.includes(`PDF原本`) || path.includes(`ツール類`) || path.includes(`ボツ課題`) || path.includes(`講師用`)) {
-    return false;
-  }
-  if (path.startsWith(`/README.md`)) {
-    return false;
-  }
-  if (path.includes(`/`) === false) {
-    return false;
+const filterPath = (path, ignoreFilenameList) => {
+  for (const ignore of ignoreFilenameList) {
+    if (path.includes(ignore)) {
+      return false;
+    }
   }
   return true;
-}
+};
 
 /**
  * ファイルパスをマークダウンのリンクにする
@@ -84,7 +80,7 @@ const filterPath = (path) => {
  */
 const toMdLink = (path) => {
   return `- [${path}](${path})`;
-}
+};
 
 /**
  * 拡張機能が有効化された時に実行する関数
@@ -92,12 +88,19 @@ const toMdLink = (path) => {
  * @param {vscode.ExtensionContext} context
  */
 const activate = (context) => {
-  const disposable = vscode.commands.registerCommand(`md-file-tree-gen.generateMarkdownFileTree`, () => {
+  const disposable = vscode.commands.registerCommand(`${EXTENSION_NAME}.generateMarkdownFileTree`, () => {
     if (vscode.workspace.workspaceFolders === undefined) {
-      const message = `md-file-tree-gen: Working folder not found, open a folder an try again`;
+      const message = `${EXTENSION_NAME}: Working folder not found, open a folder an try again`;
       vscode.window.showErrorMessage(message);
       return;
     }
+
+    // ==========================================================
+    // 設定を取得
+    // ==========================================================
+    const config = vscode.workspace.getConfiguration(EXTENSION_NAME);
+    const outputFilename = config.get(`outputFilename`, `list.md`);
+    const ignoreFilenameList = config.get(`ignore`, []);
 
     // ==========================================================
     // ワークスペースのパスを取得
@@ -114,7 +117,9 @@ const activate = (context) => {
     // ==========================================================
     const filteredList = list
       .map(item => item.replace(/\\/g, '/').replace(workspaceDirPath + `/`, ``))
-      .filter(filterPath)
+      .filter(p => {
+        return filterPath(p, ignoreFilenameList);
+      })
       .map(toMdLink);
 
     for (let i = 0; i < filteredList.length - 1; i++) {
@@ -135,11 +140,11 @@ const activate = (context) => {
     // 結果をファイル出力
     // ==========================================================
     const result = filteredList.join(`\n`);
-    fs.writeFileSync(`${workspaceDirPath}/資料一覧.md`, result, `utf8`);
+    fs.writeFileSync(`${workspaceDirPath}/${outputFilename}`, result, `utf8`);
   });
 
   context.subscriptions.push(disposable);
-}
+};
 
 /**
  * 拡張機能が無効化された時に実行する関数
